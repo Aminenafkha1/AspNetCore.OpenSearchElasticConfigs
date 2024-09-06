@@ -16,20 +16,20 @@ Before running the application, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/AspNetCore.OpenSearchElasticDemo.git
+git clone https://github.com/Aminenafkha1/AspNetCore.OpenSearchElasticConfigs.git
 cd AspNetCore.OpenSearchElasticDemo
+```
 
 
-
-## 2. Build and Run Docker Services
+### 2. Build and Run Docker Services
 
 To build and start the required services (OpenSearch, Elasticsearch, Zipkin, and others), use Docker Compose:
 
 ```bash
 docker-compose up -d
+```
 
-
-## Starting Services
+### Starting Services
 
 This command will start the following services:
 
