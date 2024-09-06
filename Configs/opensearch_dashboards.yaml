@@ -1,0 +1,7 @@
+opensearch.hosts: ["http://opensearch-node1:9202","http://opensearch-node2:9200"]
+server.host: 0.0.0.0
+opensearch.ssl.verificationMode: none
+opensearch.username: "admin"
+opensearch.password: "azerAZER1"
+opensearch.requestHeadersWhitelist: [ authorization,securitytenant ]
+vis_type_vega.enableExternalUrls: true 

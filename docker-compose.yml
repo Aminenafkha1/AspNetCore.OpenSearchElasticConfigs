@@ -1,0 +1,251 @@
+ 
+services:
+  ######################################################
+  #                                                    #
+  #                Zipkin                              #
+  #                                                    #
+  ######################################################
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - 9411:9411
+    networks:
+      - opensearch-net
+ 
+  ######################################################
+  #                                                    #
+  #                OPENSEARCH SERVICES                 #
+  #                                                    #
+  ######################################################
+
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-collector
+    command: --config /etc/otelcol/otel-collector-config.yml
+    volumes:
+      - ./Configs/otel-collector-config.yml:/etc/otelcol/otel-collector-config.yml
+    ports:
+      - 4317:4317
+      - 8888:8888
+      - 8889:8889
+    networks:
+      - opensearch-net 
+    depends_on:
+      - data-prepper
+
+  opensearch-node1:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node1
+    # environment:
+      # - cluster.name=opensearch-cluster
+      # - node.name=opensearch-node1
+      # - discovery.seed_hosts=opensearch-node1,opensearch-node2
+      # - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
+      # - plugins.query.datasources.encryption.masterkey=8e3f206ea7c07cc1bfc5cf40
+      # - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
+      # - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+      # # - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=azerAZER1" 
+      # - DISABLE_SECURITY_PLUGIN=true # Disables Security plugin
+
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    volumes:
+      - opensearch-data1:/usr/share/opensearch/data/latest
+      - ./Configs/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+    ports:
+      - "9202:9202"
+      - 9600:9600 # required for Performance Analyzer
+    expose:
+      - "5602"
+    networks:
+      - opensearch-net 
+
+  opensearch-node2:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node2
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node2
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2
+      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
+      - bootstrap.memory_lock=true
+      - plugins.query.datasources.encryption.masterkey=8e3f206ea7c07cc1bfc5cf40
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      # - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=azerAZER1"
+      - DISABLE_SECURITY_PLUGIN=true # Disables Security plugin
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data2:/usr/share/opensearch/data/latest 
+    networks:
+      - opensearch-net
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: opensearch-dashboards
+    ports:
+      - 5602:5601
+    expose:
+      - "5602"
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch-node1:9202","http://opensearch-node2:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true # disables security dashboards plugin in OpenSearch Dashboards
+    depends_on:
+      - opensearch-node1
+      - opensearch-node2
+    networks:
+      - opensearch-net 
+  
+  data-prepper: 
+    platform: linux/amd64
+    restart: unless-stopped
+    container_name: data-prepper
+    image: opensearchproject/data-prepper:latest
+    volumes:
+      - ./Configs/pipelines.yml:/usr/share/data-prepper/pipelines/pipelines.yaml
+      - ./Configs/data-prepper-config.yml:/usr/share/data-prepper/config/data-prepper-config.yaml
+    ports:
+      - 21890:21890
+      - 21891:21891
+      - 21892:21892
+    expose:
+      - "21890"
+      - "21891"
+      - "21892"
+    depends_on:
+      - opensearch-node1
+      - opensearch-node2
+    networks:
+       - opensearch-net 
+  
+
+
+  ######################################################
+  #                                                    #
+  #                Elastic Services                    #
+  #                                                    #
+  ######################################################
+  elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    labels:
+      co.elastic.logs/module: elasticsearch
+    volumes:
+      - certsdata:/usr/share/elasticsearch/config/certs
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    environment:
+      - node.name=elasticcluster
+      - cluster.name=${CLUSTER_NAME}
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+    mem_limit: ${ES_MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1 
+    networks:
+      - opensearch-net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    depends_on:
+       - elastic 
+    labels:
+      co.elastic.logs/module: kibana
+    volumes:
+      - kibanavol:/usr/share/kibana/data
+     # - ./Configs/kibana.yml:/usr/share/kibana/config/kibana.yml
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=http://elastic:9200 
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD} 
+      - XPACK_SECURITY_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+    ports:
+      - ${KIBANA_PORT}:5601 
+    mem_limit: ${MEM_LIMIT}
+    networks:
+      - opensearch-net
+ 
+  apm:
+    image: docker.elastic.co/apm/apm-server:${STACK_VERSION}
+    ports:
+      - ${APM_PORT}:8200
+    command: >
+      apm-server -e
+         -E apm-server.rum.enabled=true
+         -E setup.kibana.host=kibana:5601
+         -E setup.template.settings.index.number_of_replicas=0
+         -E apm-server.kibana.enabled=true
+         -E apm-server.kibana.host=kibana:5601
+         -E output.elasticsearch.hosts=["http://elastic:9200"]
+         -E output.elasticsearch.protocol=http
+         -E output.elasticsearch.username=elastic
+         -E output.elasticsearch.password=${ELASTIC_PASSWORD}
+         -E output.elasticsearch.ssl.enabled=false
+         -E output.elasticsearch.ssl.verification_mode=none
+    mem_limit: ${MEM_LIMIT}
+    networks:
+      - opensearch-net
+    depends_on: 
+       - elastic 
+
+
+  ######################################################
+  #                                                    #
+  #                .NET App                            #
+  #                                                    #
+  ######################################################
+  starter-service:
+    build:
+      context: .
+      dockerfile: AspNetCore.OpenSearchElastic.API/Dockerfile
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    networks:
+      - opensearch-net
+    environment:
+      - ServiceName=backend-service
+      - OTEL_EXPORTER_JAEGER_AGENT_HOST=jaeger
+      - OTEL_EXPORTER_JAEGER_AGENT_PORT=6831
+      - OTEL_EXPORTER_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - ASPNETCORE_HTTP_PORTS=8080
+    depends_on:
+      - otel-collector 
+      - elastic
+
+volumes:
+  starter-sqldata:
+  opensearch-data1:
+  opensearch-data2:
+  loki-data:
+  kibanavol:
+  esdata:
+  certsdata:
+    driver: local  
+  logstashdata01:
+    driver: local
+
+networks:
+  opensearch-net:
+    driver: bridge

@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNetCore.OpenSearchElastic.API", "AspNetCore.OpenSearchElastic.API\AspNetCore.OpenSearchElastic.API.csproj", "{FDA07444-96A0-486B-A398-366F95925B48}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FDA07444-96A0-486B-A398-366F95925B48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDA07444-96A0-486B-A398-366F95925B48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDA07444-96A0-486B-A398-366F95925B48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDA07444-96A0-486B-A398-366F95925B48}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

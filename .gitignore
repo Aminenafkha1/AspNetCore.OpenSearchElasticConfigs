@@ -1,0 +1,62 @@
+# Ignore build output directories
+bin/
+obj/
+
+# Ignore user-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Ignore publish output
+wwwroot/
+
+# Ignore Visual Studio working directory
+.vscode/
+.vs/
+
+# Rider project-specific files
+.idea/
+
+# Ignore temporary files
+*.swp
+*.temp
+*.tmp
+*.log
+
+# Ignore coverage results
+coverage/
+*.lcov
+
+# Ignore environment settings
+.env
+
+# ASP.NET Core Identity/EF Core Migrations
+Migrations/
+
+# Ignore NPM packages and build artifacts
+node_modules/
+dist/
+
+# Ignore JetBrains Rider IDE folder
+.idea/
+
+# Ignore generated files from SDK
+GeneratedFiles/
+
+# Ignore database files
+*.mdf
+*.ldf
+
+# Ignore Docker files
+docker-compose.override.yml
+Dockerfile
+
+# Ignore secrets files
+secrets.json
+
+# Ignore dependency cache
+*.lock.json
+
+# Ignore NuGet packages
+*.nupkg

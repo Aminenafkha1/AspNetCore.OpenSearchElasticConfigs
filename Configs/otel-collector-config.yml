@@ -1,0 +1,128 @@
+#receivers:
+#  zipkin:
+#  otlp:
+#    protocols:
+ #     grpc:
+  #    http:
+
+#exporters:
+#  debug:
+#     verbosity: detailed 
+#  zipkin:
+#    endpoint: "http://zipkin:9411/api/v2/spans" 
+#  otlp/traces:
+#    endpoint: "http://data-prepper:21890"
+#    tls:
+#      insecure: true
+#      insecure_skip_verify: true
+
+#processors:
+#  batch:
+#connectors:
+#  spanmetrics:
+#    histogram:
+ #     explicit:
+#        buckets: [ 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1000ms ]
+#
+
+#service:
+#  pipelines:
+#    traces:
+#      receivers: [ otlp ,zipkin ]
+#      processors: [batch]
+#      exporters: [  zipkin , debug , otlp/traces]
+#    metrics:
+#      receivers: [ spanmetrics ]
+#      exporters: [ prometheus ]
+#    logs:
+#      receivers: [ otlp ]
+#      processors: [ resource ]
+#      exporters: [ loki ]
+
+
+
+
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+extensions:
+  basicauth/client:
+    client_auth:
+      username: admin
+      password: azerAZER1
+
+receivers:
+  zipkin:
+  otlp:
+    protocols:
+      grpc:
+      http:
+        cors:
+          allowed_origins:
+            - "http://*"
+            - "https://*"
+
+exporters:
+  zipkin:
+   endpoint: "http://zipkin:9411/api/v2/spans" 
+  logging:
+    loglevel: info
+  debug:
+  otlp/traces:
+    endpoint: "data-prepper:21890"
+    tls:
+      insecure: true
+      insecure_skip_verify: true
+  otlp/metrics:
+    endpoint: "data-prepper:21891"
+    tls:
+      insecure: true
+      insecure_skip_verify: true
+  otlp/logs:
+    endpoint: "data-prepper:21892"
+    tls:
+      insecure: true
+      insecure_skip_verify: true        
+processors:
+  resource:
+    attributes:
+      - action: insert
+        key: service_name
+        from_attribute: service.name
+      - action: insert
+        key: loki.resource.labels
+        value: service_name
+  batch:
+  filter/ottl:
+    error_mode: ignore
+    metrics:
+      metric:
+        # FIXME: remove when a Metrics View is implemented in the checkout and productcatalog components
+        # or when this issue is resolved: https://github.com/open-telemetry/opentelemetry-go-contrib/issues/3071
+        - 'name == "rpc.server.duration"'
+  transform:
+    metric_statements:
+      - context: metric
+        statements:
+          # FIXME: remove when this issue is resolved: https://github.com/open-telemetry/opentelemetry-java/issues/4834
+          - set(description, "") where name == "queueSize"
+          # FIXME: remove when this issue is resolved: https://github.com/open-telemetry/opentelemetry-python-contrib/issues/1958
+          - set(description, "") where name == "http.client.duration"
+
+connectors:
+  spanmetrics:
+
+service:
+  extensions: [basicauth/client]
+  pipelines:
+    traces:
+      receivers: [otlp, zipkin]
+      processors: [batch]
+      exporters: [debug,zipkin, spanmetrics, otlp/traces]
+    metrics:
+      receivers: [otlp, spanmetrics]
+      processors: [filter/ottl, transform, batch]
+      exporters: [otlp/metrics, debug]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/logs , debug]
